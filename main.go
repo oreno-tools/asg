@@ -16,15 +16,16 @@ import (
 )
 
 const (
-	AppVersion = "0.0.3"
+	AppVersion = "0.0.4"
 )
 
 var (
-	argVersion = flag.Bool("version", false, "Print version number.")
-	argGroup   = flag.String("group", "", "Set a AutoScaling Group Name.")
-	argDesired = flag.String("desired", "", "Set a Desired capacity number.")
-	argMax     = flag.String("max", "", "Set a Max capacity number.")
-	argDryrun  = flag.Bool("dryrun", false, "Show a update execution.")
+	argVersion    = flag.Bool("version", false, "Print version number.")
+	argGroup      = flag.String("group", "", "Set a AutoScaling Group Name.")
+	argDesired    = flag.String("desired", "", "Set a Desired capacity number.")
+	argMax        = flag.String("max", "", "Set a Max capacity number.")
+	argPercentage = flag.String("per", "", "Set a OnDemand percentage number (%).")
+	argDryrun     = flag.Bool("dryrun", false, "Show a update execution.")
 	// argMin     = flag.Int64("min", 0, "Set a Min capacity number.")
 
 	// mega  = emoji.Sprint(":mega:")
@@ -44,6 +45,34 @@ func main() {
 
 	var asgGroups *autoscaling.DescribeAutoScalingGroupsOutput
 	asgGroups = getGroups(*argGroup)
+
+	if *argGroup != "" && *argPercentage != "" {
+		_per, _ := strconv.ParseInt(*argPercentage, 10, 64)
+		if *argDryrun {
+			fmt.Printf("Will be updated as follows...\n")
+			fmt.Printf("  OnDemand Percentage : %d\n", _per)
+			os.Exit(0)
+		}
+		fmt.Printf("Change the ondemand percentage of AutoScaling Group: \x1b[31m%s\x1b[0m.\n", *argGroup)
+		fmt.Printf("Do you want to continue processing? (y/n): ")
+		var stdin string
+		fmt.Scan(&stdin)
+		switch stdin {
+		case "y", "Y":
+			result := setOndemandPercent(*argGroup, _per)
+			if !result {
+				fmt.Println("Update Ondemand percentage Failure!!")
+				os.Exit(1)
+			}
+		case "n", "N":
+			fmt.Println("Interrupted.")
+			os.Exit(0)
+		default:
+			fmt.Println("Interrupted.")
+			os.Exit(0)
+		}
+		asgGroups = getGroups(*argGroup)
+	}
 
 	if *argGroup != "" && *argDesired == "" && *argMax != "" {
 		_, _, desired := getDetectedSize(asgGroups)
@@ -161,15 +190,48 @@ func setCapacity(groupName string, min int64, max int64, desiredCap int64) bool 
 	return true
 }
 
+func setOndemandPercent(groupName string, percentage int64) bool {
+	instanceDist := &autoscaling.InstancesDistribution{
+		OnDemandPercentageAboveBaseCapacity: aws.Int64(percentage),
+	}
+	mixedPolicy := &autoscaling.MixedInstancesPolicy{
+		InstancesDistribution: instanceDist,
+	}
+	params := &autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: aws.String(groupName),
+		MixedInstancesPolicy: mixedPolicy,
+	}
+
+	_, err := asg.UpdateAutoScalingGroup(params)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			fmt.Println(aerr.Error())
+			return false
+		} else {
+			fmt.Println(err.Error())
+			return false
+		}
+		return false
+	}
+	return true
+}
+
 func outputGroups(asgGroups *autoscaling.DescribeAutoScalingGroupsOutput) {
 	allASG := [][]string{}
 	for _, g := range asgGroups.AutoScalingGroups {
+		var percentage string
+		if g.MixedInstancesPolicy == nil {
+			percentage = "N/A"
+		} else {
+			percentage = strconv.FormatInt(*g.MixedInstancesPolicy.InstancesDistribution.OnDemandPercentageAboveBaseCapacity, 10)
+		}
 		ASGroup := []string{
 			*g.AutoScalingGroupName,
 			strconv.Itoa(len(g.Instances)),
 			strconv.FormatInt(*g.DesiredCapacity, 10),
 			strconv.FormatInt(*g.MinSize, 10),
 			strconv.FormatInt(*g.MaxSize, 10),
+			percentage,
 		}
 		allASG = append(allASG, ASGroup)
 	}
@@ -179,7 +241,7 @@ func outputGroups(asgGroups *autoscaling.DescribeAutoScalingGroupsOutput) {
 
 func printTable(data [][]string) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"AutoScaling Group Name", "Running Instances", "Desired Capacity", "Min Size", "Max Size"})
+	table.SetHeader([]string{"AutoScaling Group Name", "Running Instances", "Desired Capacity", "Min Size", "Max Size", "Ondemand Percentage"})
 	table.AppendBulk(data)
 	table.Render()
 }

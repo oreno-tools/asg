@@ -9,11 +9,13 @@
 
 ```sh
 # Get latest version
-v=$(curl -s 'https://api.github.com/repos/oreno-tools/asg/releases' | jq -r '.[0].tag_name' | tail -1)
+latest=$(curl -s 'https://api.github.com/repos/oreno-tools/asg/releases' \
+  | jq -r '.[0].assets[] | select(.name | test("linux-amd64")) | .browser_download_url' \
+  | head -n1 || true)
 # For macOS
-$ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_darwin_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
+$ wget https://github.com/oreno-tools/asg/releases/download/v0.0.3/asg_darwin_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
 # For Linux
-$ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_linux_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
+$ wget https://github.com/oreno-tools/asg/releases/download/v0.0.3/asg_linux_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
 ```
 
 ## Help
@@ -29,7 +31,10 @@ Usage of asg:
         Set a AutoScaling Group Name.
   -max string
         Set a Max capacity number.
+  -per string
+        Set a OnDemand percentage number (%).
   -version
+        Print version number.
         Print version number.
 ```
 
@@ -81,7 +86,23 @@ Do you want to continue processing? (y/n): y
 +--------------------------+-------------------+------------------+----------+----------+
 |  AUTOSCALING GROUP NAME  | RUNNING INSTANCES | DESIRED CAPACITY | MIN SIZE | MAX SIZE |
 +--------------------------+-------------------+------------------+----------+----------+
-| oreno-terraform-dev-demo |                 2 |                2 |        2 |       10 |
+| oreno-autoscaling-demo   |                 2 |                2 |        2 |       10 |
 +--------------------------+-------------------+------------------+----------+----------+
 ```
 
+### update OnDemand percentage
+
+```sh
+$ asg --group=oreno-terraform-dev-demo --per=10 --dryrun
+Will be updated as follows...
+  OnDemand Percentage : 10
+
+$ asg --group=oreno-terraform-dev-demo --per=10
+Change the ondemand percentage of AutoScaling Group: oreno-terraform-dev-demo.
+Do you want to continue processing? (y/n): y
++--------------------------+-------------------+------------------+----------+----------+---------------------+
+|  AUTOSCALING GROUP NAME  | RUNNING INSTANCES | DESIRED CAPACITY | MIN SIZE | MAX SIZE | ONDEMAND PERCENTAGE |
++--------------------------+-------------------+------------------+----------+----------+---------------------+
+| oreno-autoscaling-demo   |                 0 |                0 |        0 |       10 |                  10 |
++--------------------------+-------------------+------------------+----------+----------+---------------------+
+```
