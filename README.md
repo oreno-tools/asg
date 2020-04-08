@@ -7,6 +7,15 @@
 ## Install
 
 
+```sh
+# Get latest version
+v=$(curl -s 'https://api.github.com/repos/oreno-tools/asg/releases' | jq -r '.[0].tag_name' | tail -1)
+# For macOS
+$ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_darwin_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
+# For Linux
+$ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_linux_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
+```
+
 ## Help
 
 ```sh
