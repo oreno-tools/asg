@@ -9,13 +9,11 @@
 
 ```sh
 # Get latest version
-latest=$(curl -s 'https://api.github.com/repos/oreno-tools/asg/releases' \
-  | jq -r '.[0].assets[] | select(.name | test("linux-amd64")) | .browser_download_url' \
-  | head -n1 || true)
+v=$(curl -s 'https://api.github.com/repos/oreno-tools/asg/releases' | jq -r '.[0].tag_name')
 # For macOS
-$ wget https://github.com/oreno-tools/asg/releases/download/v0.0.3/asg_darwin_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
+$ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_darwin_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
 # For Linux
-$ wget https://github.com/oreno-tools/asg/releases/download/v0.0.3/asg_linux_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
+$ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_linux_amd64 -O ~/bin/asg && chmod +x ~/bin/asg
 ```
 
 ## Help
