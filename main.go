@@ -9,14 +9,16 @@ import (
 	_ "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/gosuri/uilive"
 	_ "github.com/kyokomi/emoji"
 	"github.com/olekukonko/tablewriter"
 	"os"
 	"strconv"
+	"time"
 )
 
 const (
-	AppVersion = "0.0.5"
+	AppVersion = "0.0.6"
 )
 
 var (
@@ -26,6 +28,7 @@ var (
 	argAppend     = flag.String("append", "", "Set a Append capacity number.")
 	argMax        = flag.String("max", "", "Set a Max capacity number.")
 	argPercentage = flag.String("per", "", "Set a OnDemand percentage number (%).")
+	argWait       = flag.String("wait", "", "Set a Wait time (sec).")
 	argDryrun     = flag.Bool("dryrun", false, "Show a update execution.")
 	// argMin     = flag.Int64("min", 0, "Set a Min capacity number.")
 
@@ -45,7 +48,26 @@ func main() {
 	}
 
 	var asgGroups *autoscaling.DescribeAutoScalingGroupsOutput
-	asgGroups = getGroups(*argGroup)
+	if *argWait == "" {
+		asgGroups = getGroups(*argGroup)
+	} else {
+		waitTime, _ := strconv.Atoi(*argWait)
+		writer := uilive.New()
+		writer.Start()
+		for i := 0; i < waitTime; i++ {
+			asgGroups = getGroups(*argGroup)
+			_, _, desired, instances := getDetectedSize(asgGroups)
+			fmt.Fprintf(writer, "Waiting...%d\n  Desired Capacity : %d\n  Instances        : %d\n", i, desired, instances)
+			if int(desired) == instances {
+				fmt.Fprintln(writer, "Launched the specified number of instances.")
+				writer.Stop()
+				os.Exit(0)
+			}
+			time.Sleep(time.Second * 1)
+		}
+		fmt.Println("Wait time out!")
+		os.Exit(1)
+	}
 
 	if len(asgGroups.AutoScalingGroups) == 0 {
 		fmt.Println(fmt.Sprintf("AutoScaling Group `%s` does not exists.", *argGroup))
