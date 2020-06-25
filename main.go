@@ -16,13 +16,14 @@ import (
 )
 
 const (
-	AppVersion = "0.0.4"
+	AppVersion = "0.0.5"
 )
 
 var (
 	argVersion    = flag.Bool("version", false, "Print version number.")
 	argGroup      = flag.String("group", "", "Set a AutoScaling Group Name.")
 	argDesired    = flag.String("desired", "", "Set a Desired capacity number.")
+	argAppend     = flag.String("append", "", "Set a Append capacity number.")
 	argMax        = flag.String("max", "", "Set a Max capacity number.")
 	argPercentage = flag.String("per", "", "Set a OnDemand percentage number (%).")
 	argDryrun     = flag.Bool("dryrun", false, "Show a update execution.")
@@ -45,6 +46,11 @@ func main() {
 
 	var asgGroups *autoscaling.DescribeAutoScalingGroupsOutput
 	asgGroups = getGroups(*argGroup)
+
+	if len(asgGroups.AutoScalingGroups) == 0 {
+		fmt.Println(fmt.Sprintf("AutoScaling Group `%s` does not exists.", *argGroup))
+		os.Exit(1)
+	}
 
 	if *argGroup != "" && *argPercentage != "" {
 		_per, _ := strconv.ParseInt(*argPercentage, 10, 64)
@@ -74,13 +80,20 @@ func main() {
 		asgGroups = getGroups(*argGroup)
 	}
 
+	if *argGroup != "" && *argDesired == "" && *argAppend != "" {
+		_, _, _, instances := getDetectedSize(asgGroups)
+		_append, _ := strconv.Atoi(*argAppend)
+		_desired := instances + _append
+		*argDesired = strconv.Itoa(_desired)
+	}
+
 	if *argGroup != "" && *argDesired == "" && *argMax != "" {
-		_, _, desired := getDetectedSize(asgGroups)
+		_, _, desired, _ := getDetectedSize(asgGroups)
 		*argDesired = strconv.FormatInt(desired, 10)
 	}
 
 	if *argGroup != "" && *argDesired != "" {
-		min, max, _ := getDetectedSize(asgGroups)
+		min, max, _, _ := getDetectedSize(asgGroups)
 		// fmt.Printf("min: %d\n", min)
 		// fmt.Printf("max: %d\n", max)
 		_desired, _ := strconv.ParseInt(*argDesired, 10, 64)
@@ -138,12 +151,13 @@ func main() {
 	outputGroups(asgGroups)
 }
 
-func getDetectedSize(asgGroup *autoscaling.DescribeAutoScalingGroupsOutput) (min int64, max int64, desired int64) {
+func getDetectedSize(asgGroup *autoscaling.DescribeAutoScalingGroupsOutput) (min int64, max int64, desired int64, ins int) {
 	min = *asgGroup.AutoScalingGroups[0].MinSize
 	max = *asgGroup.AutoScalingGroups[0].MaxSize
 	desired = *asgGroup.AutoScalingGroups[0].DesiredCapacity
+	ins = len(asgGroup.AutoScalingGroups[0].Instances)
 
-	return min, max, desired
+	return min, max, desired, ins
 }
 
 func getGroups(groupName string) *autoscaling.DescribeAutoScalingGroupsOutput {
