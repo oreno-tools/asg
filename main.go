@@ -134,6 +134,7 @@ func main() {
 					fmt.Println("Update Capacity Failure!!")
 					os.Exit(1)
 				}
+				fmt.Println("\n")
 			} else {
 				fmt.Println("Max size must be greater than desired capacity!!")
 				os.Exit(1)
