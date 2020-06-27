@@ -21,6 +21,8 @@ $ wget https://github.com/oreno-tools/asg/releases/download/${v}/asg_linux_amd64
 ```sh
 $ asg --help
 Usage of asg:
+  -append string
+        Set a Append capacity number.
   -desired string
         Set a Desired capacity number.
   -dryrun
@@ -33,7 +35,8 @@ Usage of asg:
         Set a OnDemand percentage number (%).
   -version
         Print version number.
-        Print version number.
+  -wait string
+        Set a Wait time (sec).
 ```
 
 ## Usage
