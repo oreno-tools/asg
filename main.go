@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	AppVersion = "0.0.6"
+	AppVersion = "0.0.7"
 )
 
 var (
@@ -58,7 +58,7 @@ func main() {
 			asgGroups = getGroups(*argGroup)
 			_, _, desired, instances := getDetectedSize(asgGroups)
 			fmt.Fprintf(writer, "Waiting...%d\n  Desired Capacity : %d\n  Instances        : %d\n", i, desired, instances)
-			if int(desired) == instances {
+			if (int(desired) == instances) || (instances > int(desired)) {
 				fmt.Fprintln(writer, "Launched the specified number of instances.")
 				writer.Stop()
 				os.Exit(0)
@@ -175,6 +175,9 @@ func main() {
 }
 
 func getDetectedSize(asgGroup *autoscaling.DescribeAutoScalingGroupsOutput) (min int64, max int64, desired int64, ins int) {
+	if len(asgGroup.AutoScalingGroups) == 0 {
+		return 0, 0, 0, 0
+	}
 	min = *asgGroup.AutoScalingGroups[0].MinSize
 	max = *asgGroup.AutoScalingGroups[0].MaxSize
 	desired = *asgGroup.AutoScalingGroups[0].DesiredCapacity
